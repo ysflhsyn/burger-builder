@@ -9,7 +9,7 @@ const Burger = (props) => {
                             .map((_, i) => <BurgerIngredient key={ing + i}
                                                              type={ing} />))
                             .reduce((arr, el) => [...arr, ...el], []);
-  
+                            
   if(!ingredients.length) {
     ingredients = <p>Please start adding ingredients!</p>;
   }
