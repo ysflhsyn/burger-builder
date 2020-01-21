@@ -1,60 +1,54 @@
-import React, { Component } from 'react';
+import React, { useEffect, Suspense, useCallback } from 'react';
 import { Switch, Route, Redirect, withRouter } from 'react-router-dom';
-import { connect } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
-import asyncComponent from './hoc/asyncComponent/asyncComponent';
 import Layout from './containers/Layout/Layout';
 import BurgerBuilder from './containers/BurgerBuilder/BurgerBuilder';
 import Logout from './containers/Auth/Logout/Logout';
 import * as actions from './store/actions/index';
 
-const asyncAuth = asyncComponent(() => import('./containers/Auth/Auth'));
-const asyncOrders = asyncComponent(() => import('./containers/Orders/Orders'));
-const asyncCheckout = asyncComponent(() => import('./containers/Checkout/Checkout'));
+const Auth = React.lazy(() => import('./containers/Auth/Auth'));
+const Orders = React.lazy(() => import('./containers/Orders/Orders'));
+const Checkout = React.lazy(() => import('./containers/Checkout/Checkout'));
 
-class App extends Component {
-  componentDidMount() {
-    this.props.tryAutoSignIn();
-  }
+const App = props => {  
+  const dispatch = useDispatch();
+  const tryAutoSignIn = useCallback(() => dispatch(actions.authCheckState()), [dispatch]);
+  const isAuth = useSelector(state => state.auth.token !== null);
 
-  render() {
-    let routes = (
-      <Switch>
-        <Route path="/auth" component={asyncAuth}/>
-        <Route path="/burger-builder" component={BurgerBuilder}/>
-        <Redirect from="/" to="/burger-builder" />
-      </Switch>
-    );
+  useEffect(() => {
+    tryAutoSignIn()
+  }, [tryAutoSignIn])
 
-    if(this.props.isAuth) {
-      // added auth path to redirection in Auth.js work correctly (redirect to Checkout)
-      routes = (
-        <>
-          <Switch>
-            <Route path="/auth" component={asyncAuth}/> 
-            <Route path="/checkout" component={asyncCheckout}/>
-            <Route path="/orders" component={asyncOrders}/>
-            <Route path="/logout" component={Logout}/>
-            <Route path="/burger-builder" component={BurgerBuilder}/>
-            <Redirect from="/" to="/burger-builder" />
-          </Switch>
-        </>
-      );
-    }
-    return (
-      <Layout>
-        {routes}
-      </Layout> 
+  let routes = (
+    <Switch>
+      <Route path="/auth" component={Auth}/>
+      <Route path="/burger-builder" component={BurgerBuilder}/>
+      <Redirect from="/" to="/burger-builder" />
+    </Switch>
+  );
+
+  if(isAuth) {
+    // added auth path to redirection in Auth.js work correctly (redirect to Checkout)
+    routes = (
+      <>
+        <Switch>
+          <Route path="/auth" component={Auth}/> 
+          <Route path="/checkout" component={Checkout}/>
+          <Route path="/orders" component={Orders}/>
+          <Route path="/logout" component={Logout}/>
+          <Route path="/burger-builder" component={BurgerBuilder}/>
+          <Redirect from="/" to="/burger-builder" />
+        </Switch>
+      </>
     );
   }
+
+  return (
+    <Layout>
+      <Suspense fallback={<p>Loading...</p>}>{routes}</Suspense>
+    </Layout> 
+  );
 }
 
-const mapStateToProps = state => ({
-  isAuth: state.auth.token !== null
-});
-
-const mapDispatchToProps = dispatch => ({
-  tryAutoSignIn: () => dispatch(actions.authCheckState())
-});
-
-export default withRouter(connect(mapStateToProps, mapDispatchToProps)(App));
+export default withRouter(App);
